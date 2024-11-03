@@ -16,3 +16,5 @@ export const coreSystemMessage = `
 - Continuously improve based on user feedback.
 </rules>
 `;
+
+// examples: https://cursor.directory/
