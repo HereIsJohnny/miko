@@ -6,7 +6,7 @@ if (!process.env.SLACK_BOT_TOKEN) {
 }
 
 const web = new WebClient(process.env.SLACK_BOT_TOKEN, {
-  retryConfig: retryPolicies.fiveRetriesInFiveMinutes,
+  // retryConfig: retryPolicies.fiveRetriesInFiveMinutes,
 });
 
 // Wrap in async function
@@ -28,6 +28,7 @@ export async function sendSlackMessage({
     });
 
     console.log("Message posted successfully:", result.ts);
+    return result;
   } catch (error) {
     console.error("Error posting message to Slack:", error);
     throw error;
