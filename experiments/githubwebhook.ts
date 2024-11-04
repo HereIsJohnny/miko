@@ -1,5 +1,5 @@
 import express from "express";
-import { sendSlackMessage } from "./slackSDK";
+import { sendSlackMessage } from "../libs/slackSDK";
 const app = express();
 const port = 3000;
 
