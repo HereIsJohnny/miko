@@ -1,5 +1,5 @@
 import express from "express";
-
+import { sendSlackMessage } from "./slackSDK";
 const app = express();
 const port = 3000;
 
@@ -27,6 +27,11 @@ app.post("/webhook", (req, res) => {
       console.log(`New PR #${pr.number} created: ${pr.title}`);
       console.log(`Created by ${pr.user.login}`);
       console.log(`URL: ${pr.html_url}`);
+
+      sendSlackMessage({
+        message: `New PR #${pr.number} created: ${pr.title}`,
+        previewLink: pr.html_url,
+      });
     }
   }
 
