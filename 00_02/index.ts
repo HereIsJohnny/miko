@@ -1,9 +1,10 @@
 import z from "zod";
 
 const apiKey = Bun.env.API_KEY;
+const poligonUrl = Bun.env.POLIGON_URL;
 
 const get = async () => {
-  const response = await fetch("https://poligon.aidevs.pl/dane.txt");
+  const response = await fetch(`${poligonUrl}/dane.txt`);
   const data = await response.text();
   const strings = data.split("\n").filter((s) => s.length > 0);
   return strings;
@@ -16,7 +17,7 @@ const post = async (task: string, answer: string[]) => {
     answer,
   };
 
-  const res = await fetch("https://poligon.aidevs.pl/verify", {
+  const res = await fetch(`${poligonUrl}/verify`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
