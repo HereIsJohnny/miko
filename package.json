@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@langchain/openai": "^0.3.11",
+    "@mendable/firecrawl-js": "^1.7.2",
     "@prisma/client": "^5.21.1",
     "@slack/web-api": "^7.7.0",
     "express": "^4.21.1",
