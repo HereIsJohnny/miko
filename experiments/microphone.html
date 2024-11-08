@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Microphone Audio Effects</title>
+</head>
+<body>
+  <h1>Microphone Audio Effects</h1>
+  <button id="start">Start Microphone</button>
+
+  <label for="preset">Preset:</label>
+  <select id="preset">
+    <option value="default">Default</option>
+    <option value="concertHall">Concert Hall</option>
+    <option value="smallRoom">Small Room</option>
+    <option value="cathedral">Cathedral</option>
+  </select>
+
+  <label for="frequency">Frequency (Hz):</label>
+  <input type="number" id="frequency" min="20" max="2000" step="10" value="440">
+
+  <label for="reverb">Reverb Level:</label>
+  <input type="range" id="reverb" min="0" max="1" step="0.1" value="0.5">
+
+  <label for="gain">Gain Level:</label>
+  <input type="range" id="gain" min="0" max="1" step="0.1" value="0.5">
+
+  <label for="delay">Delay (ms):</label>
+  <input type="number" id="delay" min="0" max="1000" step="10" value="0">
+
+  <script>
+    let audioContext;
+    let microphoneStream;
+    let filterNode;
+    let reverbNode;
+    let gainNode;
+    let delayNode;
+
+    async function startMicrophone() {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      
+      // Access microphone
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      microphoneStream = audioContext.createMediaStreamSource(stream);
+      
+      // Filter node for frequency change
+      filterNode = audioContext.createBiquadFilter();
+      filterNode.type = "peaking"; // Boosts around set frequency
+      filterNode.frequency.value = document.getElementById("frequency").value;
+      
+      // Gain node for volume control
+      gainNode = audioContext.createGain();
+      gainNode.gain.value = document.getElementById("gain").value;
+      
+      // Reverb node (convolver) with basic effect
+      reverbNode = audioContext.createConvolver();
+      const reverbLevel = document.getElementById("reverb").value;
+      reverbNode.buffer = createReverbBuffer(audioContext, reverbLevel);
+
+      // Delay node for echo effect
+      delayNode = audioContext.createDelay();
+      delayNode.delayTime.value = document.getElementById("delay").value / 1000;
+
+      // Connect nodes
+      microphoneStream.connect(filterNode);
+      filterNode.connect(gainNode);
+      gainNode.connect(reverbNode);
+      reverbNode.connect(delayNode);
+      delayNode.connect(audioContext.destination);
+    }
+    
+    function createReverbBuffer(context, level) {
+      const sampleRate = context.sampleRate;
+      const buffer = context.createBuffer(2, sampleRate * 3, sampleRate); // 3 seconds
+      for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+        const data = buffer.getChannelData(channel);
+        for (let i = 0; i < data.length; i++) {
+          data[i] = (Math.random() * 2 - 1) * (1 - i / data.length) * level; // decay over time
+        }
+      }
+      return buffer;
+    }
+
+    function applyPreset(preset) {
+      switch (preset) {
+        case "concertHall":
+          document.getElementById("frequency").value = 500;
+          document.getElementById("reverb").value = 0.8;
+          document.getElementById("gain").value = 0.7;
+          document.getElementById("delay").value = 300;
+          break;
+        case "smallRoom":
+          document.getElementById("frequency").value = 1000;
+          document.getElementById("reverb").value = 0.3;
+          document.getElementById("gain").value = 0.5;
+          document.getElementById("delay").value = 100;
+          break;
+        case "cathedral":
+          document.getElementById("frequency").value = 200;
+          document.getElementById("reverb").value = 1.0;
+          document.getElementById("gain").value = 0.9;
+          document.getElementById("delay").value = 500;
+          break;
+        default:
+          document.getElementById("frequency").value = 440;
+          document.getElementById("reverb").value = 0.5;
+          document.getElementById("gain").value = 0.5;
+          document.getElementById("delay").value = 0;
+          break;
+      }
+      updateAudioEffects();
+    }
+
+    function updateAudioEffects() {
+      if (filterNode) {
+        filterNode.frequency.value = document.getElementById("frequency").value;
+      }
+      if (gainNode) {
+        gainNode.gain.value = document.getElementById("gain").value;
+      }
+      if (reverbNode) {
+        reverbNode.buffer = createReverbBuffer(audioContext, document.getElementById("reverb").value);
+      }
+      if (delayNode) {
+        delayNode.delayTime.value = document.getElementById("delay").value / 1000;
+      }
+    }
+
+    document.getElementById("start").addEventListener("click", startMicrophone);
+
+    document.getElementById("preset").addEventListener("change", (event) => {
+      applyPreset(event.target.value);
+    });
+
+    document.getElementById("frequency").addEventListener("input", updateAudioEffects);
+    document.getElementById("gain").addEventListener("input", updateAudioEffects);
+    document.getElementById("reverb").addEventListener("input", updateAudioEffects);
+    document.getElementById("delay").addEventListener("input", updateAudioEffects);
+  </script>
+</body>
+</html>
