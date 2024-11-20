@@ -73,4 +73,26 @@ export class OpenAIService {
       throw error;
     }
   }
+
+  async generateImage(prompt: string): Promise<string> {
+    const response = await this.openai.images.generate({
+      model: "dall-e-3",
+      prompt,
+      n: 1,
+      size: "1024x1024",
+    });
+
+    return response.data[0].url!;
+  }
+
+  async transcribe(audioPath: string): Promise<string> {
+    console.log("Transcribing audio...", audioPath);
+
+    const transcription = await this.openai.audio.transcriptions.create({
+      file: fs.createReadStream(audioPath),
+      language: "en",
+      model: "gpt-4o",
+    });
+    return transcription.text;
+  }
 }
