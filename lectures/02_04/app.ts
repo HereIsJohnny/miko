@@ -76,25 +76,63 @@ const processFile = async (filePath: string) => {
 
 const classifyText = async (text: string) => {
   const messages = new MessagesService(`
-      Analyse user input and classify it contains informations about:
-      - people (information about people or traces of presence of people. there must be mention of name or surname)
-      - hardware (information about hardware problems or malfunctions, problems with equipment)
-      - other (other information)
+**Classify Notes: People, Hardware, or Other**
 
-      There are 3 categories: people, hardware, other.
-     
-      Never classify software bugs or issues as a hardware issue. Never classify text without person name as a people.
+This prompt's sole purpose is to classify notes based on their content into three categories: "people," "hardware," or "other."
 
-      Response only with the category name. 
+<prompt_objective>
+Classify each note into one of the following categories: "people," "hardware," or "other" based on its content. Respond with the category name only.
+</prompt_objective>
 
-      Examples:
-      - "Przebieg patroli nocnych na poziomie ściśle monitorowanym. Czujniki pozostają aktywne, a wytyczne dotyczące wykrywania życia organicznego – bez rezultatów. Stan patrolu bez zakłóceń." - other
-      - "Godzina 00:11. Czujniki dźwięku wykryły ultradźwiękowy sygnał, pochodzenie: nadajnik ukryty w zielonych krzakach, nieopodal lasu. Przeprowadzono analizę obiektu. Analiza odcisków palców wskazuje osobę o imieniu Barbara Zawadzka, skorelowano z bazą urodzeń. Nadajnik przekazany do działu śledczego. Obszar zabezpieczony, patrol zakończony bez dalszych incydentów." - people
-      - "Godzina 22:43. Wykryto jednostkę organiczną w pobliżu północnego skrzydła fabryki. Osobnik przedstawił się jako Aleksander Ragowski. Przeprowadzono skan biometryczny, zgodność z bazą danych potwierdzona. Jednostka przekazana do działu kontroli. Patrol kontynuowany." - people
-      - Godzina 03:45. Patrol na peryferiach zachodnich zakończony. Czujniki nie wykazały żadnych niepokojących sygnałów. Obszar bez anomalii, kończę bieżący cykl i przechodzę do kolejnego sektora. - other
-      - W czujniku ruchu wykryto usterkę spowodowaną zwarciem kabli. - hardware
+<prompt_rules>
+- **"people"**: If the note contains name or surname of a person of a captured person.
+- **"hardware"**: If the note discusses issues or problems with machines, devices, or any hardware-related issues (e.g., malfunctions, repairs, parts). It is not about the software issues. 
+- **NEVER** classify software-related issues as "hardware".
+- **NEVER** classify hardware-related issues as "people" or vice versa.
+- **NEVER** include anything other than the category name in the output.
+- The output **MUST** only include one of the categories: "people," "hardware," or "other."
 
-      `);
+</prompt_rules>
+
+People category take precedence over hardware.
+
+<prompt_examples>
+USER: "Godzina II:50. W czujniku ruchu wykryto usterkę spowodowaną zwarciem kabli. Przyczyną była mała mysz, która dostała się między przewody, powodując chwilowe przerwy w działaniu sensorów. Odłączono zasilanie, usunięto ciało obce i zabezpieczono osłony kabli przed dalszymi uszkodzeniami. Czujnik ponownie skalibrowany i sprawdzony pod kątem poprawności działania."
+AI: hardware
+
+USER: "Godzina 22:43. Wykryto jednostkę organiczną w pobliżu północnego skrzydła fabryki. Osobnik przedstawił się jako Aleksander Ragowski. Przeprowadzono skan biometryczny, zgodność z bazą danych potwierdzona. Jednostka przekazana do działu kontroli. Patrol kontynuowany."
+AI: people
+
+</prompt_examples>
+
+  `);
+
+  messages.addUserMessage(text);
+
+  const response = await openAIService.completion(
+    messages.getAllMessages() as ChatCompletionMessageParam[],
+    "gpt-4o"
+  );
+
+  return response.choices[0].message.content;
+};
+
+const classifyPeople = async (text: string) => {
+  const messages = new MessagesService(`
+    Classify if the text contains name or surname. Respond with "yes" or "no".
+    
+
+    <prompt_examples>
+    USER: "Godzina 22:43. Wykryto jednostkę organiczną w pobliżu północnego skrzydła fabryki. Osobnik przedstawił się jako Aleksander Ragowski. Przeprowadzono skan biometryczny, zgodność z bazą danych potwierdzona. Jednostka przekazana do działu kontroli. Patrol kontynuowany."
+    AI: yes
+
+    USER: "Godzina 01:30. Przebieg patroli nocnych na poziomie ściśle monitorowanym. Czujniki pozostają aktywne, a wytyczne dotyczące wykrywania życia organicznego – bez rezultatów. Stan patrolu bez zakłóceń."
+    AI: no
+
+    USER: "Godzina 22:50. Sektor północno-zachodni spokojny, stan obszaru stabilny. Skanery temperatury i ruchu wskazują brak wykrycia. Jednostka w pełni operacyjna, powracam do dalszego patrolu."
+    AI: no
+    </prompt_examples>
+  `);
 
   const response = await openAIService.completion(
     messages.getAllMessages() as ChatCompletionMessageParam[],
@@ -127,9 +165,10 @@ const main = async () => {
     allProcessedFiles.map(async (filePath) => {
       const text = fs.readFileSync(filePath, "utf8");
       const result = await classifyText(text);
+      // const result = await classifyPeople(text);
+      // console.log({ filePath, result });
       const fileName = filePath.split("/").pop()?.split("|")[0];
       if (result === "people") {
-        console.log("People", fileName);
         people.push(fileName!);
       } else if (result === "hardware") {
         hardware.push(fileName!);
@@ -137,11 +176,13 @@ const main = async () => {
     })
   );
 
-  console.log("People", people.sort());
-  console.log("Hardware", hardware.sort());
+  // console.log("People", people.sort());
+  // console.log("Hardware", hardware.sort());
 
   // "People field is incorrect - are you sure about 2024-11-12_report-17.png?"
   // "People field is incorrect - are you sure about 2024-11-12_report-16.png?"
+
+  console.log({ people, hardware });
 
   const result = await sendResult(
     {
