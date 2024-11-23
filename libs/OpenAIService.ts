@@ -88,11 +88,32 @@ export class OpenAIService {
   async transcribe(audioPath: string): Promise<string> {
     console.log("Transcribing audio...", audioPath);
 
-    const transcription = await this.openai.audio.transcriptions.create({
-      file: fs.createReadStream(audioPath),
-      language: "en",
-      model: "gpt-4o",
-    });
-    return transcription.text;
+    try {
+      let audioFile;
+
+      if (audioPath.startsWith("http")) {
+        // Handle remote file
+        const response = await fetch(audioPath);
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        // Create a File object that OpenAI's API can handle
+        audioFile = new File([buffer], "audio.mp3", { type: "audio/mpeg" });
+      } else {
+        // Handle local file
+        audioFile = fs.createReadStream(audioPath);
+      }
+
+      const transcription = await this.openai.audio.transcriptions.create({
+        file: audioFile,
+        language: "pl",
+        model: "whisper-1", // Note: Changed from "gpt-4o" to "whisper-1" as it's the correct model for transcription
+      });
+
+      return transcription.text;
+    } catch (error) {
+      console.error("Error in transcription:", error);
+      throw error;
+    }
   }
 }

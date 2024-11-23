@@ -5,6 +5,7 @@
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/fluent-ffmpeg": "^2.1.27",
+    "@types/turndown": "^5.0.5",
     "bun-types": "latest",
     "prisma": "^5.21.1"
   },
@@ -27,6 +28,7 @@
     "promptfoo": "^0.95.0",
     "replicate": "^1.0.1",
     "sharp": "^0.33.5",
+    "turndown": "^7.2.0",
     "zod": "^3.23.8"
   }
 }
