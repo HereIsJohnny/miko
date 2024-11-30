@@ -1,7 +1,7 @@
 import FireCrawlApp, { ScrapeResponse } from "@mendable/firecrawl-js";
 const apiKey = Bun.env.FIRECRAWL_API_KEY;
 import fs from "fs";
-import { TextSplitter } from "../../libs/TextService";
+import { TextSplitter } from "../../libs/TextSplitter";
 
 if (!apiKey) {
   throw new Error("FIRECRAWL_API_KEY is not set");
