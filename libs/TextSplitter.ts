@@ -1,6 +1,6 @@
-import { createByModelName } from '@microsoft/tiktokenizer';
+import { createByModelName } from "@microsoft/tiktokenizer";
 
-interface IDoc {
+export interface IDoc {
   text: string;
   metadata: {
     tokens: number;
@@ -17,29 +17,33 @@ interface Headers {
 export class TextSplitter {
   private tokenizer?: Awaited<ReturnType<typeof createByModelName>>;
 
-  private readonly MODEL_NAME: string;
   private readonly SPECIAL_TOKENS = new Map<string, number>([
-    ['<|im_start|>', 100264],
-    ['<|im_end|>', 100265],
-    ['<|im_sep|>', 100266],
+    ["<|im_start|>", 100264],
+    ["<|im_end|>", 100265],
+    ["<|im_sep|>", 100266],
   ]);
 
-  constructor(modelName: string = 'gpt-4o') {
-    this.MODEL_NAME = modelName;
-  }
+  constructor(private modelName: string = "gpt-4") {}
 
-  private async initializeTokenizer(): Promise<void> {
-    if (!this.tokenizer) {
-      this.tokenizer = await createByModelName(this.MODEL_NAME, this.SPECIAL_TOKENS);
+  private async initializeTokenizer(model?: string): Promise<void> {
+    if (!this.tokenizer || model !== this.modelName) {
+      this.modelName = model || this.modelName;
+      this.tokenizer = await createByModelName(
+        this.modelName,
+        this.SPECIAL_TOKENS
+      );
     }
   }
 
   private countTokens(text: string): number {
     if (!this.tokenizer) {
-      throw new Error('Tokenizer not initialized');
+      throw new Error("Tokenizer not initialized");
     }
     const formattedContent = this.formatForTokenization(text);
-    const tokens = this.tokenizer.encode(formattedContent, Array.from(this.SPECIAL_TOKENS.keys()));
+    const tokens = this.tokenizer.encode(
+      formattedContent,
+      Array.from(this.SPECIAL_TOKENS.keys())
+    );
     return tokens.length;
   }
 
@@ -84,21 +88,36 @@ export class TextSplitter {
     return chunks;
   }
 
-  private getChunk(text: string, start: number, limit: number): { chunkText: string; chunkEnd: number } {
+  private getChunk(
+    text: string,
+    start: number,
+    limit: number
+  ): { chunkText: string; chunkEnd: number } {
     console.log(`Getting chunk starting at ${start} with limit ${limit}`);
-    
+
     // Account for token overhead due to formatting
-    const overhead = this.countTokens(this.formatForTokenization('')) - this.countTokens('');
-    
+    const overhead =
+      this.countTokens(this.formatForTokenization("")) - this.countTokens("");
+
     // Initial tentative end position
-    let end = Math.min(start + Math.floor((text.length - start) * limit / this.countTokens(text.slice(start))), text.length);
-    
+    let end = Math.min(
+      start +
+        Math.floor(
+          ((text.length - start) * limit) / this.countTokens(text.slice(start))
+        ),
+      text.length
+    );
+
     // Adjust end to avoid exceeding token limit
     let chunkText = text.slice(start, end);
     let tokens = this.countTokens(chunkText);
-    
+
     while (tokens + overhead > limit && end > start) {
-      console.log(`Chunk exceeds limit with ${tokens + overhead} tokens. Adjusting end position...`);
+      console.log(
+        `Chunk exceeds limit with ${
+          tokens + overhead
+        } tokens. Adjusting end position...`
+      );
       end = this.findNewChunkEnd(text, start, end);
       chunkText = text.slice(start, end);
       tokens = this.countTokens(chunkText);
@@ -113,11 +132,17 @@ export class TextSplitter {
     return { chunkText, chunkEnd: end };
   }
 
-  private adjustChunkEnd(text: string, start: number, end: number, currentTokens: number, limit: number): number {
+  private adjustChunkEnd(
+    text: string,
+    start: number,
+    end: number,
+    currentTokens: number,
+    limit: number
+  ): number {
     const minChunkTokens = limit * 0.8; // Minimum chunk size is 80% of limit
 
-    const nextNewline = text.indexOf('\n', end);
-    const prevNewline = text.lastIndexOf('\n', end);
+    const nextNewline = text.indexOf("\n", end);
+    const prevNewline = text.lastIndexOf("\n", end);
 
     // Try extending to next newline
     if (nextNewline !== -1 && nextNewline < text.length) {
@@ -125,7 +150,9 @@ export class TextSplitter {
       const chunkText = text.slice(start, extendedEnd);
       const tokens = this.countTokens(chunkText);
       if (tokens <= limit && tokens >= minChunkTokens) {
-        console.log(`Extending chunk to next newline at position ${extendedEnd}`);
+        console.log(
+          `Extending chunk to next newline at position ${extendedEnd}`
+        );
         return extendedEnd;
       }
     }
@@ -136,7 +163,9 @@ export class TextSplitter {
       const chunkText = text.slice(start, reducedEnd);
       const tokens = this.countTokens(chunkText);
       if (tokens <= limit && tokens >= minChunkTokens) {
-        console.log(`Reducing chunk to previous newline at position ${reducedEnd}`);
+        console.log(
+          `Reducing chunk to previous newline at position ${reducedEnd}`
+        );
         return reducedEnd;
       }
     }
@@ -186,7 +215,11 @@ export class TextSplitter {
     }
   }
 
-  private extractUrlsAndImages(text: string): { content: string; urls: string[]; images: string[] } {
+  private extractUrlsAndImages(text: string): {
+    content: string;
+    urls: string[];
+    images: string[];
+  } {
     const urls: string[] = [];
     const images: string[] = [];
     let urlIndex = 0;
@@ -203,5 +236,27 @@ export class TextSplitter {
       });
 
     return { content, urls, images };
+  }
+
+  async document(
+    text: string,
+    model?: string,
+    additionalMetadata?: Record<string, any>
+  ): Promise<IDoc> {
+    await this.initializeTokenizer(model);
+    const tokens = this.countTokens(text);
+    const headers = this.extractHeaders(text);
+    const { content, urls, images } = this.extractUrlsAndImages(text);
+
+    return {
+      text: content,
+      metadata: {
+        tokens,
+        headers,
+        urls,
+        images,
+        ...additionalMetadata,
+      },
+    };
   }
 }
